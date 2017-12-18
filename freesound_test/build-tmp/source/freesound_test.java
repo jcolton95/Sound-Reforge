@@ -9,6 +9,7 @@ import ddf.minim.effects.*;
 import ddf.minim.signals.*; 
 import ddf.minim.spi.*; 
 import ddf.minim.ugens.*; 
+import java.net.URLEncoder; 
 import ddf.minim.*; 
 
 import java.util.HashMap; 
@@ -21,6 +22,8 @@ import java.io.OutputStream;
 import java.io.IOException; 
 
 public class freesound_test extends PApplet {
+
+
 
 
 
@@ -52,10 +55,14 @@ String baseUrl = "https://freesound.org/apiv2/";
  */
 
 public void setup() {
-  
-  background(255);
+    
+    background(255);
 
-  soundengine = new Minim(this);
+    soundengine = new Minim(this);
+
+    stroke(255);
+    fill(0);
+    textSize(16);
 }
 
 /*
@@ -63,54 +70,86 @@ public void setup() {
   endpoint and paramenters.
 */
 public JSONObject callAPI (String endpoint, JSONObject params) {
-  String url = baseUrl + endpoint + "?token=" + apiKey + "&format=json";
+    String url = baseUrl + endpoint + "?token=" + apiKey + "&format=json";
 
-  if (params != null) {
+    if (params != null) {
     String [] properties = (String[]) params.keys()
-      .toArray(new String[params.size()]);
+        .toArray(new String[params.size()]);
 
     for (int i = 0; i < params.size(); i++) {
-      println(properties[i]);
-      String property = properties[i];
-      url += "&" + property + "=" + params.getString(property);
+        println(properties[i]);
+        String property = properties[i];
+        String value = params.getString(property);
+
+        url += "&" + property + "=" + value;
     }
-  }
+    }
 
-  String [] response = loadStrings(url);
-  saveStrings("data.json", response);
-  JSONObject jobj = loadJSONObject("data.json");
+    String [] response = loadStrings(url);
+    saveStrings("data.json", response);
+    JSONObject jobj = loadJSONObject("data.json");
 
-  return jobj;
+    return jobj;
 }
 
-public void mouseClicked() {
+public AudioSample getAudioSampleForQuery (String query) {
+    
+    // list of search results
+    JSONObject searchParams = new JSONObject();
+    searchParams.setString("query", query);
+    JSONObject response = callAPI("search/text/", searchParams);
 
-  JSONObject searchParams = new JSONObject();
-  searchParams.setString("query", query);
-  JSONObject response = callAPI("search/text/", searchParams);
+    //println(response);
 
-  // song data for first result
-  JSONArray results = response.getJSONArray("results");
-  // song Id for first result
-  int firstSoundId = results.getJSONObject(0).getInt("id");
+    // song data for first result
+    JSONArray results = response.getJSONArray("results");
+    // song Id for first result
+    int firstSoundId = results.getJSONObject(0).getInt("id");
 
-  // song data for first result (using id)
-  JSONObject songData = callAPI("sounds/" + firstSoundId, null);
+    // song data for first result (using id)
+    JSONObject songData = callAPI("sounds/" + firstSoundId, null);
 
-  // preview URL for first result in songData->previews->preview-lq-mpw
-  String previewUrl = songData.getJSONObject("previews").getString("preview-lq-mp3");
+    AudioSample sound = null;
 
-  println("Song Data:", songData);
-  println("URL:", previewUrl);
+    if (songData != null) {
+        // preview URL for first result in songData->previews->preview-lq-mpw
+        String previewUrl = songData.getJSONObject("previews").getString("preview-lq-mp3");
 
-  // load sample in to sound engine
-  freesound = soundengine.loadSample(previewUrl, 1024);    
+        println("Song Data:", songData);
+        println("URL:", previewUrl);
 
-  // play sound
-  freesound.trigger();
+        // load sample in to sound engine
+        sound = soundengine.loadSample(previewUrl, 1024);
+
+        // play sound
+        //freesound.trigger();
+    }
+
+    return sound;
+}
+
+public void keyPressed () {
+    if (key == ENTER) {
+        query = query.toLowerCase();
+        AudioSample sound = getAudioSampleForQuery(query);
+        
+        if (sound != null) {
+            sound.trigger();
+        }
+    }
+    else if ((key > 31) && (key != CODED)) {
+        query = query + key;
+    }
+    else if (key == BACKSPACE && query.length() > 0) {
+        query = query.substring(0, query.length()-1);
+    }
 }
 
 public void draw() {
+  background(255);
+  float cursorPosition = textWidth(query);
+  line(cursorPosition, 0, cursorPosition, 100);
+  text(query, 0, 50);
 }
 String apiKey = "akoZxHxqSty8PsFNB3xNOAhYfQpYZb4E86mJ00xl";
   public void settings() {  size(200, 200); }
