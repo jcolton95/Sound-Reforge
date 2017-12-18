@@ -58,11 +58,11 @@ public void setup() {
     
     background(255);
 
-    soundengine = new Minim(this);
-
     stroke(255);
     fill(0);
     textSize(16);
+    
+    soundengine = new Minim(this);
 }
 
 /*
@@ -73,16 +73,16 @@ public JSONObject callAPI (String endpoint, JSONObject params) {
     String url = baseUrl + endpoint + "?token=" + apiKey + "&format=json";
 
     if (params != null) {
-    String [] properties = (String[]) params.keys()
-        .toArray(new String[params.size()]);
+        String [] properties = (String[]) params.keys()
+            .toArray(new String[params.size()]);
 
-    for (int i = 0; i < params.size(); i++) {
-        println(properties[i]);
-        String property = properties[i];
-        String value = params.getString(property);
+        for (int i = 0; i < params.size(); i++) {
+            println(properties[i]);
+            String property = properties[i];
+            String value = params.getString(property);
 
-        url += "&" + property + "=" + value;
-    }
+            url += "&" + property + "=" + value;
+        }
     }
 
     String [] response = loadStrings(url);
@@ -96,10 +96,15 @@ public AudioSample getAudioSampleForQuery (String query) {
     
     // list of search results
     JSONObject searchParams = new JSONObject();
-    searchParams.setString("query", query);
+
+    String encodedQuery = convertencoding(query);
+    println("encodedQuery: "+encodedQuery);
+
+
+    searchParams.setString("query", encodedQuery);
     JSONObject response = callAPI("search/text/", searchParams);
 
-    //println(response);
+    println("RESPONSE:", response);
 
     // song data for first result
     JSONArray results = response.getJSONArray("results");
@@ -115,14 +120,11 @@ public AudioSample getAudioSampleForQuery (String query) {
         // preview URL for first result in songData->previews->preview-lq-mpw
         String previewUrl = songData.getJSONObject("previews").getString("preview-lq-mp3");
 
-        println("Song Data:", songData);
-        println("URL:", previewUrl);
+        //println("Song Data:", songData);
+        //println("URL:", previewUrl);
 
         // load sample in to sound engine
         sound = soundengine.loadSample(previewUrl, 1024);
-
-        // play sound
-        //freesound.trigger();
     }
 
     return sound;
@@ -132,7 +134,7 @@ public void keyPressed () {
     if (key == ENTER) {
         query = query.toLowerCase();
         AudioSample sound = getAudioSampleForQuery(query);
-        
+
         if (sound != null) {
             sound.trigger();
         }
@@ -146,12 +148,35 @@ public void keyPressed () {
 }
 
 public void draw() {
-  background(255);
-  float cursorPosition = textWidth(query);
-  line(cursorPosition, 0, cursorPosition, 100);
-  text(query, 0, 50);
+    background(255);
+    float cursorPosition = textWidth(query);
+    line(cursorPosition, 0, cursorPosition, 100);
+    text(query, 0, 50);
 }
 String apiKey = "akoZxHxqSty8PsFNB3xNOAhYfQpYZb4E86mJ00xl";
+public String convertencoding(String thestring){
+
+  //convert thestring to utf-8
+  String encoded = null;
+  try { 
+    encoded = java.net.URLEncoder.encode(thestring, "UTF-8");
+     } catch (Exception e) {} 
+ 
+  //workaround problem with artists like "Iron & Wine"
+  String Strlist1[] = split(encoded, "%26");
+  encoded = join(Strlist1, "%2526");
+ 
+  //workaround the "+" problem with artists like "+/-"
+  String Strlist2[] = split(encoded, "%2B");
+  encoded = join(Strlist2, "%252B");
+
+  //workaround the "/" problem with artists like "+/-"
+  String Strlist3[] = split(encoded, "%2F");
+  encoded = join(Strlist3, "%252F");
+
+
+  return encoded;
+}
   public void settings() {  size(200, 200); }
   static public void main(String[] passedArgs) {
     String[] appletArgs = new String[] { "freesound_test" };

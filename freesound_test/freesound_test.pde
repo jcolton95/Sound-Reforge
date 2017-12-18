@@ -68,35 +68,43 @@ JSONObject callAPI (String endpoint, JSONObject params) {
 }
 
 AudioSample getAudioSampleForQuery (String query) {
+
+    AudioSample sound = null;
     
     // list of search results
     JSONObject searchParams = new JSONObject();
-    searchParams.setString("query", query);
+
+    String encodedQuery = convertencoding(query);
+    println("encodedQuery: "+encodedQuery);
+
+
+    searchParams.setString("query", encodedQuery);
     JSONObject response = callAPI("search/text/", searchParams);
 
-    //println(response);
+    println("RESPONSE:", response);
 
     // song data for first result
     JSONArray results = response.getJSONArray("results");
-    // song Id for first result
-    int firstSoundId = results.getJSONObject(0).getInt("id");
+    if (results.size() > 0) {
+        // song Id for first result
+        int firstSoundId = results.getJSONObject(0).getInt("id");
 
-    // song data for first result (using id)
-    JSONObject songData = callAPI("sounds/" + firstSoundId, null);
+        // song data for first result (using id)
+        JSONObject songData = callAPI("sounds/" + firstSoundId, null);
 
-    AudioSample sound = null;
 
-    if (songData != null) {
-        // preview URL for first result in songData->previews->preview-lq-mpw
-        String previewUrl = songData.getJSONObject("previews").getString("preview-lq-mp3");
+        if (songData != null) {
+            // preview URL for first result in songData->previews->preview-lq-mpw
+            String previewUrl = songData.getJSONObject("previews").getString("preview-lq-mp3");
 
-        //println("Song Data:", songData);
-        //println("URL:", previewUrl);
+            //println("Song Data:", songData);
+            //println("URL:", previewUrl);
 
-        // load sample in to sound engine
-        sound = soundengine.loadSample(previewUrl, 1024);
+            // load sample in to sound engine
+            sound = soundengine.loadSample(previewUrl, 1024);
+        }
     }
-
+    
     return sound;
 }
 
@@ -107,6 +115,8 @@ void keyPressed () {
 
         if (sound != null) {
             sound.trigger();
+        } else {
+            println("No results for " + query);
         }
     }
     else if ((key > 31) && (key != CODED)) {
