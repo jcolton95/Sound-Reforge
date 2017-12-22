@@ -9,6 +9,8 @@ import ddf.minim.effects.*;
 import ddf.minim.signals.*; 
 import ddf.minim.spi.*; 
 import ddf.minim.ugens.*; 
+import rita.*; 
+import java.util.*; 
 import java.net.URLEncoder; 
 import ddf.minim.*; 
 
@@ -32,6 +34,9 @@ public class freesound_test extends PApplet {
 
 
 
+
+
+
 // evening of Dec 12, 2017
 // first go at freesound
 
@@ -43,6 +48,11 @@ AudioSample freesound;
 
 String query = "chimpanzee";
 String baseUrl = "https://freesound.org/apiv2/";
+String[] rhymes;
+RiTa rita;
+RiString rs;
+
+boolean isLoading = false;
 
 /*
     query
@@ -62,6 +72,10 @@ public void setup() {
     textSize(16);
     
     soundengine = new Minim(this);
+    
+    rita = new RiTa();
+    rs = new RiString(query);
+    rhymes = rita.rhymes(query);
 }
 
 /*
@@ -69,6 +83,8 @@ public void setup() {
     endpoint and paramenters.
 */
 public JSONObject callAPI (String endpoint, JSONObject params) {
+    isLoading = true;
+
     String url = baseUrl + endpoint + "?token=" + apiKey + "&format=json";
 
     if (params != null) {
@@ -87,6 +103,8 @@ public JSONObject callAPI (String endpoint, JSONObject params) {
     String [] response = loadStrings(url);
     saveStrings("data.json", response);
     JSONObject jobj = loadJSONObject("data.json");
+
+    isLoading = false;
 
     return jobj;
 }
@@ -140,7 +158,8 @@ public void keyPressed () {
     if (key == ENTER) {
         query = query.toLowerCase();
         freesound = getAudioSampleForQuery(query);
-
+        rhymes = rita.rhymes(query);
+        println(rhymes);
         if (freesound != null) {
             freesound.trigger();
         } else {
@@ -157,6 +176,7 @@ public void keyPressed () {
 
 public void draw() {
     background(80);
+
     float cursorPosition = textWidth(query);
     line(cursorPosition, 0, cursorPosition, 100);
     text(query, 0, 50);
@@ -180,8 +200,24 @@ public void draw() {
                     spaceBetween + freesound.right.get(i+1)*amplitude);
         }
     }
+
+    if (isLoading == false) {
+        AudioSample sound = getAudioSampleForQuery(rita.randomWord());
+        sound.trigger();
+        println("new word");
+    }
+
+   
+    // Map data = rs.features();
+
+    // float y = 15;
+    // for (Iterator it = data.keySet().iterator(); it.hasNext();) {
+    //     String key = (String) it.next();
+    //     text(key + ": " + data.get(key), width/3, y += 26);
+    // }
+
 }
-String apiKey = "akoZxHxqSty8PsFNB3xNOAhYfQpYZb4E86mJ00xl";
+String apiKey = "A9i0clTQls40EREfWVaVNUycsGd7Y1XKN3ExH5VE";
 public String convertencoding(String thestring){
 
   //convert thestring to utf-8
@@ -205,9 +241,9 @@ public String convertencoding(String thestring){
 
   return encoded;
 }
-  public void settings() {  size(200, 200); }
+  public void settings() {  size(500, 500); }
   static public void main(String[] passedArgs) {
-    String[] appletArgs = new String[] { "freesound_test" };
+    String[] appletArgs = new String[] { "--present", "--window-color=#030000", "--hide-stop", "freesound_test" };
     if (passedArgs != null) {
       PApplet.main(concat(appletArgs, passedArgs));
     } else {
