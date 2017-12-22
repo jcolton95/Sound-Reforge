@@ -20,14 +20,13 @@ String query = "chimpanzee";
 String baseUrl = "https://freesound.org/apiv2/";
 
 /*
-  query
- search 
- returns list of sounds with IDs
- use an ID to get specific sound data from /sounds/<sound_id>
- returns 'preview' field as url
- use url as argument to Minim method to play audio
- 
- */
+    query
+    search 
+    returns list of sounds with IDs
+    use an ID to get specific sound data from /sounds/<sound_id>
+    returns 'preview' field as url
+    use url as argument to Minim method to play audio
+*/
 
 void setup() {
     size(200, 200);
@@ -41,8 +40,8 @@ void setup() {
 }
 
 /*
-  Returns a JSON object containing the freesound API response given an 
-  endpoint and paramenters.
+    Returns a JSON object containing the freesound API response given an 
+    endpoint and paramenters.
 */
 JSONObject callAPI (String endpoint, JSONObject params) {
     String url = baseUrl + endpoint + "?token=" + apiKey + "&format=json";
@@ -67,6 +66,10 @@ JSONObject callAPI (String endpoint, JSONObject params) {
     return jobj;
 }
 
+/*
+    returns an AudioSample for the given query by calling the freesound API
+    if there are no results, returns null
+*/
 AudioSample getAudioSampleForQuery (String query) {
 
     AudioSample sound = null;
@@ -111,10 +114,10 @@ AudioSample getAudioSampleForQuery (String query) {
 void keyPressed () {
     if (key == ENTER) {
         query = query.toLowerCase();
-        AudioSample sound = getAudioSampleForQuery(query);
+        freesound = getAudioSampleForQuery(query);
 
-        if (sound != null) {
-            sound.trigger();
+        if (freesound != null) {
+            freesound.trigger();
         } else {
             println("No results for " + query);
         }
@@ -128,8 +131,28 @@ void keyPressed () {
 }
 
 void draw() {
-    background(255);
+    background(80);
     float cursorPosition = textWidth(query);
     line(cursorPosition, 0, cursorPosition, 100);
     text(query, 0, 50);
+
+    // we draw the waveform by connecting neighbor values with a line
+    // we multiply each of the values by 50 
+    // because the values in the buffers are normalized
+    // this means that they have values between -1 and 1. 
+    // If we don't scale them up our waveform 
+    // will look more or less like a straight line.
+    
+    // visualizer
+    int amplitude = 50;
+    int spaceBetween = 150;
+
+    if (freesound != null) {
+        for(int i = 0; i < freesound.bufferSize() - 1; i++) {
+            line(i, amplitude + freesound.left.get(i)*amplitude, 
+                    i+1, amplitude + freesound.left.get(i+1)*amplitude);
+            line(i, spaceBetween + freesound.right.get(i)*amplitude, i+1, 
+                    spaceBetween + freesound.right.get(i+1)*amplitude);
+        }
+    }
 }
