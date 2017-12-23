@@ -46,7 +46,7 @@ public class freesound_test extends PApplet {
 Minim soundengine;
 AudioSample freesound; 
 
-String query = "chimpanzee";
+String query = "ape";
 String baseUrl = "https://freesound.org/apiv2/";
 String[] rhymes;
 RiTa rita;
@@ -76,6 +76,9 @@ public void setup() {
     rita = new RiTa();
     rs = new RiString(query);
     rhymes = rita.rhymes(query);
+
+    query = query.toLowerCase();
+    freesound = getAudioSampleForQuery(query);
 }
 
 /*
@@ -156,17 +159,18 @@ public AudioSample getAudioSampleForQuery (String query) {
 
 public void keyPressed () {
     if (key == ENTER) {
-        query = query.toLowerCase();
-        freesound = getAudioSampleForQuery(query);
         rhymes = rita.rhymes(query);
         println(rhymes);
+        int index = PApplet.parseInt(random(rhymes.length));
+        query = rhymes[index];
+        freesound = getAudioSampleForQuery(query);
+        }
         if (freesound != null) {
             freesound.trigger();
         } else {
             println("No results for " + query);
         }
-    }
-    else if ((key > 31) && (key != CODED)) {
+    if ((key > 31) && (key != CODED)) {
         query = query + key;
     }
     else if (key == BACKSPACE && query.length() > 0) {
@@ -201,13 +205,12 @@ public void draw() {
         }
     }
 
-    if (isLoading == false) {
-        AudioSample sound = getAudioSampleForQuery(rita.randomWord());
-        sound.trigger();
-        println("new word");
-    }
+    // if (isLoading == false) {
+    //     AudioSample sound = getAudioSampleForQuery(rita.rhymes(query));
+    //     sound.trigger();
+    //     println("new word");
+    // }
 
-   
     // Map data = rs.features();
 
     // float y = 15;
