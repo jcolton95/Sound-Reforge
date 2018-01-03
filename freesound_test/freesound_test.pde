@@ -4,7 +4,7 @@ import ddf.minim.effects.*;
 import ddf.minim.signals.*;
 import ddf.minim.spi.*;
 import ddf.minim.ugens.*;
-
+import blobDetection.*;
 import rita.*;
 import java.util.*;
 
@@ -18,12 +18,16 @@ import ddf.minim.*;
 
 Minim soundengine;
 AudioSample freesound; 
+RiTa rita;
+RiString rs;
 
 String query = "ape";
 String baseUrl = "https://freesound.org/apiv2/";
 String[] rhymes;
-RiTa rita;
-RiString rs;
+JSONArray tags;
+PImage spectrumImage;
+
+BlobDetection blobDetection;
 
 boolean isLoading = false;
 
@@ -37,7 +41,7 @@ boolean isLoading = false;
 */
 
 void setup() {
-    size(500, 500);
+    size(500, 600);
     background(255);
 
     stroke(255);
@@ -45,10 +49,10 @@ void setup() {
     textSize(16);
     
     soundengine = new Minim(this);
-    
     rita = new RiTa();
     rs = new RiString(query);
     rhymes = rita.rhymes(query);
+    blobDetection = new BlobDetection(width, height);
 
     query = query.toLowerCase();
     freesound = getAudioSampleForQuery(query);
@@ -59,7 +63,7 @@ void setup() {
     endpoint and paramenters.
 */
 JSONObject callAPI (String endpoint, JSONObject params) {
-    isLoading = true;
+    // isLoading = true;
 
     String url = baseUrl + endpoint + "?token=" + apiKey + "&format=json";
 
@@ -68,7 +72,7 @@ JSONObject callAPI (String endpoint, JSONObject params) {
             .toArray(new String[params.size()]);
 
         for (int i = 0; i < params.size(); i++) {
-            println(properties[i]);
+            // println(properties[i]);
             String property = properties[i];
             String value = params.getString(property);
 
@@ -80,7 +84,7 @@ JSONObject callAPI (String endpoint, JSONObject params) {
     saveStrings("data.json", response);
     JSONObject jobj = loadJSONObject("data.json");
 
-    isLoading = false;
+    // isLoading = false;
 
     return jobj;
 }
@@ -103,7 +107,7 @@ AudioSample getAudioSampleForQuery (String query) {
     searchParams.setString("query", encodedQuery);
     JSONObject response = callAPI("search/text/", searchParams);
 
-    println("RESPONSE:", response);
+    // println("RESPONSE:", response);
 
     // song data for first result
     JSONArray results = response.getJSONArray("results");
@@ -118,9 +122,19 @@ AudioSample getAudioSampleForQuery (String query) {
         if (songData != null) {
             // preview URL for first result in songData->previews->preview-lq-mpw
             String previewUrl = songData.getJSONObject("previews").getString("preview-lq-mp3");
+            tags = songData.getJSONArray("tags");
+            
+            // get spectrum image
+            String spectrumUrl = songData.getJSONObject("images").getString("spectral_l");
+            spectrumImage = loadImage(spectrumUrl);
 
-            //println("Song Data:", songData);
-            //println("URL:", previewUrl);
+            // get blobs
+            if (spectrumImage != null) {
+                PImage img = spectrumImage.get(0, 0, 5, 5); 
+                img.loadPixels();
+                blobDetection.computeBlobs(img.pixels);
+                println(blobDetection.getBlobNb());
+            }
 
             // load sample in to sound engine
             sound = soundengine.loadSample(previewUrl, 1024);
@@ -131,18 +145,21 @@ AudioSample getAudioSampleForQuery (String query) {
 }
 
 void keyPressed () {
-    if (key == ENTER) {
-        rhymes = rita.rhymes(query);
-        println(rhymes);
-        int index = int(random(rhymes.length));
-        query = rhymes[index];
-        freesound = getAudioSampleForQuery(query);
-        }
+    if (key == ENTER && query.length() > 0) {
+            rhymes = rita.rhymes(query);
+            textY = 0;
+            //println(rhymes);
+            int index = int(random(rhymes.length));
+            if (rhymes.length > 0) {
+                query = rhymes[index];
+            }
+            freesound = getAudioSampleForQuery(query);
         if (freesound != null) {
             freesound.trigger();
         } else {
             println("No results for " + query);
         }
+    }
     if ((key > 31) && (key != CODED)) {
         query = query + key;
     }
@@ -151,9 +168,13 @@ void keyPressed () {
     }
 }
 
+int textY = 0;
+
 void draw() {
     background(80);
-
+    if (spectrumImage != null) {
+        image(spectrumImage, 0, 0, width, height);
+    }
     float cursorPosition = textWidth(query);
     line(cursorPosition, 0, cursorPosition, 100);
     text(query, 0, 50);
@@ -178,6 +199,18 @@ void draw() {
         }
     }
 
+    if (tags != null) {
+
+        for (int i = 0; i < tags.size(); ++i) {
+            String tag = tags.getString(i);
+            text(tag, 100, textY - i * 40);
+        }
+        textSize(30);
+        textY++;
+        // int x;
+        // int y;
+
+    }
     // if (isLoading == false) {
     //     AudioSample sound = getAudioSampleForQuery(rita.rhymes(query));
     //     sound.trigger();
@@ -191,5 +224,4 @@ void draw() {
     //     String key = (String) it.next();
     //     text(key + ": " + data.get(key), width/3, y += 26);
     // }
-
 }
