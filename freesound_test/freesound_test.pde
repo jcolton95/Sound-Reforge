@@ -4,16 +4,12 @@ import ddf.minim.effects.*;
 import ddf.minim.signals.*;
 import ddf.minim.spi.*;
 import ddf.minim.ugens.*;
-import blobDetection.*;
+// import blobDetection.*;
 import rita.*;
 import java.util.*;
 
 import java.net.URLEncoder;
 
-// evening of Dec 12, 2017
-// first go at freesound
-
-//import processing.sound.*;
 import ddf.minim.*;
 
 Minim soundengine;
@@ -21,13 +17,19 @@ AudioSample freesound;
 RiTa rita;
 RiString rs;
 
-String query = "ape";
+String query = rita.randomWord();
 String baseUrl = "https://freesound.org/apiv2/";
 String[] rhymes;
+String stress;
+String phonemes;
 JSONArray tags;
+int duration;
 PImage spectrumImage;
 
-BlobDetection blobDetection;
+float gain;
+float volume;
+
+// BlobDetection blobDetection;
 
 boolean isLoading = false;
 
@@ -39,9 +41,9 @@ boolean isLoading = false;
     returns 'preview' field as url
     use url as argument to Minim method to play audio
 */
-
 void setup() {
-    size(500, 600);
+    fullScreen();
+    frameRate(30);
     background(255);
 
     stroke(255);
@@ -52,7 +54,9 @@ void setup() {
     rita = new RiTa();
     rs = new RiString(query);
     rhymes = rita.rhymes(query);
-    blobDetection = new BlobDetection(width, height);
+    stress = rita.getStresses(query);
+    phonemes = rita.getPhonemes(query);
+    // blobDetection = new BlobDetection(width, height);
 
     query = query.toLowerCase();
     freesound = getAudioSampleForQuery(query);
@@ -101,7 +105,7 @@ AudioSample getAudioSampleForQuery (String query) {
     JSONObject searchParams = new JSONObject();
 
     String encodedQuery = convertencoding(query);
-    println("encodedQuery: "+encodedQuery);
+    println("encodedQuery: " + encodedQuery);
 
 
     searchParams.setString("query", encodedQuery);
@@ -123,6 +127,8 @@ AudioSample getAudioSampleForQuery (String query) {
             // preview URL for first result in songData->previews->preview-lq-mpw
             String previewUrl = songData.getJSONObject("previews").getString("preview-lq-mp3");
             tags = songData.getJSONArray("tags");
+            duration = songData.getInt("duration");
+            // println(duration);
             
             // get spectrum image
             String spectrumUrl = songData.getJSONObject("images").getString("spectral_l");
@@ -132,17 +138,41 @@ AudioSample getAudioSampleForQuery (String query) {
             if (spectrumImage != null) {
                 PImage img = spectrumImage.get(0, 0, 5, 5); 
                 img.loadPixels();
-                blobDetection.computeBlobs(img.pixels);
-                println(blobDetection.getBlobNb());
-            }
+                // blobDetection.computeBlobs(img.pixels);
+                // println(blobDetection.getBlobNb());
+            };
 
             // load sample in to sound engine
             sound = soundengine.loadSample(previewUrl, 1024);
-        }
-    }
+        };
+    };
     
     return sound;
 }
+
+// void getStressValues (String stress) {
+//      // Convert RiTA Stress string to int[]
+//     String[] stressvalues = stress.replaceAll("\\[", "").replaceAll("\\]", "").replaceAll("\\s", "").replaceAll("/", " ").split("/");
+//     int[] stresses = new int[stressvalues.length];
+//     for (int i = 0; i < stressvalues.length; i++) {
+//         try {
+//             stresses[i] = Integer.parseInt(stressvalues[i]);
+//         } catch (NumberFormatException nfe) {
+//          //NOTE: write something here if you need to recover from formatting errors
+//         };
+//     // println(stressvalues);
+//     };
+
+//     stress = rita.getStresses(query);
+//     for (int index = 0; index < stressvalues.length; index = index + duration/stressvalues) {
+//         stressvalues[index];
+//     }
+//     if (index == 0) {
+//         freesound.mute();
+//     } else if (index == 1) {
+//         freesound.unmute();
+//     }
+// }
 
 void keyPressed () {
     if (key == ENTER && query.length() > 0) {
@@ -156,6 +186,7 @@ void keyPressed () {
             freesound = getAudioSampleForQuery(query);
         if (freesound != null) {
             freesound.trigger();
+            // println(freesound.duration());
         } else {
             println("No results for " + query);
         }
@@ -163,9 +194,13 @@ void keyPressed () {
     if ((key > 31) && (key != CODED)) {
         query = query + key;
     }
+    if (key == TAB) {
+        query = rita.randomWord();
+        freesound = getAudioSampleForQuery(query);
+    }
     else if (key == BACKSPACE && query.length() > 0) {
         query = query.substring(0, query.length()-1);
-    }
+    };
 }
 
 int textY = 0;
@@ -173,10 +208,11 @@ int textY = 0;
 void draw() {
     background(80);
     if (spectrumImage != null) {
+        // tint(255,50);
         image(spectrumImage, 0, 0, width, height);
     }
     float cursorPosition = textWidth(query);
-    line(cursorPosition, 0, cursorPosition, 100);
+    fill(255);
     text(query, 0, 50);
 
     // we draw the waveform by connecting neighbor values with a line
@@ -187,7 +223,7 @@ void draw() {
     // will look more or less like a straight line.
     
     // visualizer
-    int amplitude = 50;
+    int amplitude = height;
     int spaceBetween = 150;
 
     if (freesound != null) {
@@ -203,25 +239,36 @@ void draw() {
 
         for (int i = 0; i < tags.size(); ++i) {
             String tag = tags.getString(i);
-            text(tag, 100, textY - i * 40);
+            text(tag, 200, textY - i * 40);
         }
         textSize(30);
         textY++;
         // int x;
         // int y;
 
-    }
-    // if (isLoading == false) {
-    //     AudioSample sound = getAudioSampleForQuery(rita.rhymes(query));
-    //     sound.trigger();
-    //     println("new word");
-    // }
+    };
 
-    // Map data = rs.features();
+    String[] stressvalues = stress.replaceAll("\\[", "").replaceAll("\\]", "").replaceAll("\\s", "").replaceAll("/", " ").split("/");
+    int[] stresses = new int[stressvalues.length];
+    for (int i = 0; i < stressvalues.length; i++) {
+        try {
+            stresses[i] = Integer.parseInt(stressvalues[i]);
+        } catch (NumberFormatException nfe) {
+         //NOTE: write something here if you need to recover from formatting errors
+        };
+    };
 
-    // float y = 15;
-    // for (Iterator it = data.keySet().iterator(); it.hasNext();) {
-    //     String key = (String) it.next();
-    //     text(key + ": " + data.get(key), width/3, y += 26);
+    // for (int index = 0; index < stressvalues.length; index = index + duration / stressvalues) {
+    //     stressvalues[index];
     // }
+    // if (index == 0) {
+    //     freesound.mute();
+    // } else if (index == 1) {
+    //     freesound.unmute();
+    // };
+
+    stress = rita.getStresses(query);
+    phonemes = rita.getPhonemes(query);
+    text(stress, 0, 100);
+    text(phonemes, 0, 150);
 }
